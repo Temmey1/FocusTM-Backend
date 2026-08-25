@@ -6,6 +6,7 @@ export declare class ProductsService {
     private productModel;
     constructor(productModel: Model<ProductDocument>);
     private serialize;
+    private getR2Client;
     create(dto: CreateProductDto): Promise<any>;
     findAll(category?: string, opts?: {
         limit?: number;

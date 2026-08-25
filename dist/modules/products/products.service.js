@@ -17,7 +17,7 @@ const common_1 = require("@nestjs/common");
 const mongoose_1 = require("@nestjs/mongoose");
 const mongoose_2 = require("mongoose");
 const product_schema_1 = require("./product.schema");
-const firebase_admin_1 = require("../../config/firebase-admin");
+const client_s3_1 = require("@aws-sdk/client-s3");
 const path = require("path");
 const uuid_1 = require("uuid");
 let ProductsService = class ProductsService {
@@ -27,6 +27,18 @@ let ProductsService = class ProductsService {
     serialize(doc) {
         const obj = doc.toObject();
         return { ...obj, id: doc._id.toString(), _id: undefined };
+    }
+    getR2Client() {
+        const accountId = process.env.R2_ACCOUNT_ID;
+        const accessKeyId = process.env.R2_ACCESS_KEY_ID;
+        const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY;
+        if (!accountId || !accessKeyId || !secretAccessKey)
+            return null;
+        return new client_s3_1.S3Client({
+            region: "auto",
+            endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
+            credentials: { accessKeyId, secretAccessKey },
+        });
     }
     create(dto) {
         return this.productModel.create(dto).then((d) => this.serialize(d));
@@ -74,24 +86,32 @@ let ProductsService = class ProductsService {
     async uploadImages(files) {
         if (!files || files.length === 0)
             throw new common_1.BadRequestException("No files provided");
-        const bucketName = process.env.FIREBASE_STORAGE_BUCKET;
-        const urls = [];
-        const admin = (0, firebase_admin_1.getFirebaseAdmin)();
-        if (!bucketName) {
-            throw new common_1.BadRequestException("FIREBASE_STORAGE_BUCKET not configured. Set FIREBASE_STORAGE_BUCKET in .env to enable image uploads.");
+        const bucket = process.env.R2_BUCKET;
+        const publicBase = (process.env.R2_PUBLIC_URL || "").replace(/\/$/, "");
+        const s3 = this.getR2Client();
+        if (!s3) {
+            throw new common_1.BadRequestException("R2 credentials missing. Set R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET, and R2_PUBLIC_URL in .env to enable image uploads.");
         }
-        const bucket = admin.storage().bucket(bucketName);
+        if (!bucket) {
+            throw new common_1.BadRequestException("R2_BUCKET not configured in .env");
+        }
+        if (!publicBase) {
+            throw new common_1.BadRequestException("R2_PUBLIC_URL not configured in .env (e.g. https://pub-xxxxx.r2.dev)");
+        }
+        const urls = [];
         for (const file of files) {
             if (!file.mimetype.startsWith("image/"))
                 continue;
             const ext = path.extname(file.originalname) || ".png";
-            const filename = `products/${Date.now()}-${(0, uuid_1.v4)().slice(0, 8)}${ext}`;
-            const fileRef = bucket.file(filename);
-            await fileRef.save(file.buffer, {
-                metadata: { contentType: file.mimetype, cacheControl: "public, max-age=31536000" },
-                public: true,
+            const key = `products/${Date.now()}-${(0, uuid_1.v4)().slice(0, 8)}${ext}`;
+            await s3.putObject({
+                Bucket: bucket,
+                Key: key,
+                Body: file.buffer,
+                ContentType: file.mimetype,
+                CacheControl: "public, max-age=31536000",
             });
-            urls.push(fileRef.publicUrl());
+            urls.push(`${publicBase}/${key}`);
         }
         return { urls };
     }
