@@ -31,6 +31,8 @@ export declare class Order {
     paymentMethod: string;
     status: string;
     userId?: string | null;
+    createdAt?: Date;
+    updatedAt?: Date;
     monnifyTransactionReference?: string | null;
 }
 export declare const OrderSchema: import("mongoose").Schema<Order, import("mongoose").Model<Order, any, any, any, Document<unknown, any, Order, any, {}> & Order & {

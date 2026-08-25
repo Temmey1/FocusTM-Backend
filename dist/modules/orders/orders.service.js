@@ -20,18 +20,24 @@ const uuid_1 = require("uuid");
 const order_schema_1 = require("./order.schema");
 const products_service_1 = require("../products/products.service");
 const notifications_service_1 = require("../notifications/notifications.service");
+const whatsapp_service_1 = require("../notifications/whatsapp.service");
 const payments_service_1 = require("../payments/payments.service");
 const config_1 = require("@nestjs/config");
 let OrdersService = class OrdersService {
-    constructor(orderModel, productsService, notificationsService, paymentsService, config) {
+    constructor(orderModel, productsService, notificationsService, whatsappService, paymentsService, config) {
         this.orderModel = orderModel;
         this.productsService = productsService;
         this.notificationsService = notificationsService;
+        this.whatsappService = whatsappService;
         this.paymentsService = paymentsService;
         this.config = config;
     }
     generateOrderNumber() {
         return `FTM-${Date.now().toString().slice(-6)}-${(0, uuid_1.v4)().slice(0, 4).toUpperCase()}`;
+    }
+    serialize(order) {
+        const obj = order.toObject();
+        return { ...obj, id: order._id.toString(), _id: undefined };
     }
     async create(dto, userId) {
         const orderNumber = this.generateOrderNumber();
@@ -46,6 +52,7 @@ let OrdersService = class OrdersService {
         }
         this.notificationsService.sendOrderConfirmation(order).catch(() => undefined);
         this.notificationsService.notifyAdminNewOrder(order).catch(() => undefined);
+        this.whatsappService.notifyOwnerNewOrder(order).catch(() => undefined);
         let monnifyCheckoutUrl = null;
         if (dto.paymentMethod === "monnify") {
             const frontendUrl = this.config.get("FRONTEND_URL") || "http://localhost:3000";
@@ -61,31 +68,47 @@ let OrdersService = class OrdersService {
             monnifyCheckoutUrl = checkoutUrl;
             await this.orderModel.updateOne({ _id: order._id }, { monnifyTransactionReference: orderNumber });
         }
-        return {
-            id: order._id,
-            orderId: orderNumber,
-            orderNumber,
-            monnifyCheckoutUrl,
-            ...order.toObject(),
-        };
+        return { ...this.serialize(order), monnifyCheckoutUrl };
     }
-    findAll() {
-        return this.orderModel.find().sort({ createdAt: -1 }).exec();
+    async findAll() {
+        const orders = await this.orderModel.find().sort({ createdAt: -1 }).exec();
+        return orders.map((o) => this.serialize(o));
     }
-    findByUser(userId) {
-        return this.orderModel.find({ userId }).sort({ createdAt: -1 }).exec();
+    async findByUser(userId) {
+        const orders = await this.orderModel.find({ userId }).sort({ createdAt: -1 }).exec();
+        return orders.map((o) => this.serialize(o));
     }
     async findOne(id) {
         const order = await this.orderModel.findById(id).exec();
         if (!order)
             throw new common_1.NotFoundException("Order not found");
-        return order;
+        return this.serialize(order);
+    }
+    async findByOrderNumber(orderNumber) {
+        const order = await this.orderModel.findOne({ orderNumber }).exec();
+        if (!order)
+            throw new common_1.NotFoundException("Order not found");
+        const { delivery, items, subtotal, deliveryFee, total, paymentMethod, status, createdAt } = order.toObject();
+        return {
+            orderNumber,
+            status,
+            createdAt,
+            items,
+            subtotal,
+            deliveryFee,
+            total,
+            paymentMethod,
+            customerName: delivery.fullName,
+            method: delivery.method,
+            state: delivery.state,
+            city: delivery.city,
+        };
     }
     async updateStatus(id, status) {
         const order = await this.orderModel.findByIdAndUpdate(id, { status }, { new: true }).exec();
         if (!order)
             throw new common_1.NotFoundException("Order not found");
-        return order;
+        return this.serialize(order);
     }
     async markPaidByReference(reference) {
         return this.orderModel.findOneAndUpdate({ orderNumber: reference }, { status: "paid" }, { new: true });
@@ -98,6 +121,7 @@ exports.OrdersService = OrdersService = __decorate([
     __metadata("design:paramtypes", [mongoose_2.Model,
         products_service_1.ProductsService,
         notifications_service_1.NotificationsService,
+        whatsapp_service_1.WhatsappService,
         payments_service_1.PaymentsService,
         config_1.ConfigService])
 ], OrdersService);

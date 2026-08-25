@@ -27,6 +27,9 @@ let OrdersController = class OrdersController {
     create(dto, req) {
         return this.ordersService.create(dto, req.user?.uid || null);
     }
+    track(orderNumber) {
+        return this.ordersService.findByOrderNumber(orderNumber);
+    }
     findAll() {
         return this.ordersService.findAll();
     }
@@ -50,6 +53,13 @@ __decorate([
     __metadata("design:paramtypes", [create_order_dto_1.CreateOrderDto, Object]),
     __metadata("design:returntype", void 0)
 ], OrdersController.prototype, "create", null);
+__decorate([
+    (0, common_1.Get)("track/:orderNumber"),
+    __param(0, (0, common_1.Param)("orderNumber")),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], OrdersController.prototype, "track", null);
 __decorate([
     (0, common_1.UseGuards)(firebase_auth_guard_1.FirebaseAuthGuard, admin_guard_1.AdminGuard),
     (0, common_1.Get)(),

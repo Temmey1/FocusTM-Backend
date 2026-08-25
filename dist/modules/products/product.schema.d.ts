@@ -12,6 +12,8 @@ export declare class Product {
     customizable: boolean;
     stock: number;
     featured: boolean;
+    createdAt?: Date;
+    updatedAt?: Date;
 }
 export declare const ProductSchema: import("mongoose").Schema<Product, import("mongoose").Model<Product, any, any, any, Document<unknown, any, Product, any, {}> & Product & {
     _id: import("mongoose").Types.ObjectId;

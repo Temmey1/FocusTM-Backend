@@ -30,6 +30,10 @@ export class DeliveryLocation {
 
   @Prop()
   note?: string;
+
+  // Added automatically by { timestamps: true } — declared for TS visibility.
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 export const DeliveryLocationSchema = SchemaFactory.createForClass(DeliveryLocation);

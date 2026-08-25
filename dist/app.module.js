@@ -10,11 +10,16 @@ exports.AppModule = void 0;
 const common_1 = require("@nestjs/common");
 const config_1 = require("@nestjs/config");
 const mongoose_1 = require("@nestjs/mongoose");
+const throttler_1 = require("@nestjs/throttler");
+const core_1 = require("@nestjs/core");
 const products_module_1 = require("./modules/products/products.module");
 const orders_module_1 = require("./modules/orders/orders.module");
 const payments_module_1 = require("./modules/payments/payments.module");
 const notifications_module_1 = require("./modules/notifications/notifications.module");
 const auth_module_1 = require("./modules/auth/auth.module");
+const locations_module_1 = require("./modules/locations/locations.module");
+const custom_orders_module_1 = require("./modules/custom-orders/custom-orders.module");
+const admin_module_1 = require("./modules/admin/admin.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -23,12 +28,17 @@ exports.AppModule = AppModule = __decorate([
         imports: [
             config_1.ConfigModule.forRoot({ isGlobal: true }),
             mongoose_1.MongooseModule.forRoot(process.env.MONGODB_URI || "mongodb://localhost:27017/focustm"),
+            throttler_1.ThrottlerModule.forRoot([{ ttl: 60000, limit: 60 }]),
             products_module_1.ProductsModule,
             orders_module_1.OrdersModule,
             payments_module_1.PaymentsModule,
             notifications_module_1.NotificationsModule,
             auth_module_1.AuthModule,
+            locations_module_1.LocationsModule,
+            custom_orders_module_1.CustomOrdersModule,
+            admin_module_1.AdminModule,
         ],
+        providers: [{ provide: core_1.APP_GUARD, useClass: throttler_1.ThrottlerGuard }],
     })
 ], AppModule);
 //# sourceMappingURL=app.module.js.map

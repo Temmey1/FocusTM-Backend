@@ -37,6 +37,10 @@ export class Product {
 
   @Prop({ default: false })
   featured: boolean;
+
+  // Added automatically by { timestamps: true } — declared for TS visibility.
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 export const ProductSchema = SchemaFactory.createForClass(Product);

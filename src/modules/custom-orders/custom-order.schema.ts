@@ -40,6 +40,10 @@ export class CustomOrder {
 
   @Prop()
   adminNote?: string;
+
+  // Added automatically by { timestamps: true } — declared for TS visibility.
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 export const CustomOrderSchema = SchemaFactory.createForClass(CustomOrder);

@@ -92,6 +92,12 @@ export class Order {
   @Prop({ default: null })
   userId?: string | null;
 
+  // Not @Prop() — these are added automatically by { timestamps: true }
+  // above. Declaring them here just gives TypeScript visibility into
+  // fields that already exist on every document at runtime.
+  createdAt?: Date;
+  updatedAt?: Date;
+
   @Prop({ default: null })
   monnifyTransactionReference?: string | null;
 }
