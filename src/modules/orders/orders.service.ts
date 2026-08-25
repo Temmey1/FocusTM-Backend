@@ -108,6 +108,7 @@ export class OrdersService {
       method: delivery.method,
       state: delivery.state,
       city: delivery.city,
+      address: delivery.address,
     };
   }
 

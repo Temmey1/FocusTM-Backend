@@ -7,7 +7,9 @@
     "start": "node dist/main",
     "start:dev": "nest start --watch",
     "start:prod": "node dist/main",
-    "seed": "ts-node -r tsconfig-paths/register src/scripts/seed.ts"
+    "seed": "ts-node -r tsconfig-paths/register src/scripts/seed.ts",
+    "make-admin": "ts-node -r tsconfig-paths/register src/scripts/make-admin.ts",
+    "revoke-admin": "ts-node -r tsconfig-paths/register src/scripts/revoke-admin.ts"
   },
   "dependencies": {
     "@nestjs/common": "^10.3.10",
