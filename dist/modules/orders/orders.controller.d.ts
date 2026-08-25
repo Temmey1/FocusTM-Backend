@@ -27,6 +27,7 @@ export declare class OrdersController {
         method: string;
         state: string;
         city: string;
+        address: string;
     }>;
     findAll(): Promise<any[]>;
     findMine(req: any): Promise<any[]>;

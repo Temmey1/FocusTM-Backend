@@ -4,31 +4,17 @@ import { UpdateProductDto } from "./dto/update-product.dto";
 export declare class ProductsController {
     private readonly productsService;
     constructor(productsService: ProductsService);
-    findAll(category?: string): Promise<(import("mongoose").Document<unknown, {}, import("./product.schema").ProductDocument, {}, {}> & import("./product.schema").Product & import("mongoose").Document<import("mongoose").Types.ObjectId, any, any, Record<string, any>, {}> & Required<{
-        _id: import("mongoose").Types.ObjectId;
-    }> & {
-        __v: number;
-    })[]>;
-    findBySlug(slug: string): Promise<import("mongoose").Document<unknown, {}, import("./product.schema").ProductDocument, {}, {}> & import("./product.schema").Product & import("mongoose").Document<import("mongoose").Types.ObjectId, any, any, Record<string, any>, {}> & Required<{
-        _id: import("mongoose").Types.ObjectId;
-    }> & {
-        __v: number;
+    findAll(category?: string, limit?: string, skip?: string): Promise<any[] | {
+        data: any[];
+        total: number;
     }>;
-    findOne(id: string): Promise<import("mongoose").Document<unknown, {}, import("./product.schema").ProductDocument, {}, {}> & import("./product.schema").Product & import("mongoose").Document<import("mongoose").Types.ObjectId, any, any, Record<string, any>, {}> & Required<{
-        _id: import("mongoose").Types.ObjectId;
-    }> & {
-        __v: number;
+    findBySlug(slug: string): Promise<any>;
+    findOne(id: string): Promise<any>;
+    uploadImages(files: Express.Multer.File[]): Promise<{
+        urls: string[];
     }>;
-    create(dto: CreateProductDto): Promise<import("mongoose").Document<unknown, {}, import("./product.schema").ProductDocument, {}, {}> & import("./product.schema").Product & import("mongoose").Document<import("mongoose").Types.ObjectId, any, any, Record<string, any>, {}> & Required<{
-        _id: import("mongoose").Types.ObjectId;
-    }> & {
-        __v: number;
-    }>;
-    update(id: string, dto: UpdateProductDto): Promise<import("mongoose").Document<unknown, {}, import("./product.schema").ProductDocument, {}, {}> & import("./product.schema").Product & import("mongoose").Document<import("mongoose").Types.ObjectId, any, any, Record<string, any>, {}> & Required<{
-        _id: import("mongoose").Types.ObjectId;
-    }> & {
-        __v: number;
-    }>;
+    create(dto: CreateProductDto): Promise<any>;
+    update(id: string, dto: UpdateProductDto): Promise<any>;
     remove(id: string): Promise<{
         success: boolean;
     }>;

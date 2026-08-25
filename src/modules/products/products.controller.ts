@@ -1,4 +1,17 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } from "@nestjs/common";
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Body,
+  Param,
+  Query,
+  UseGuards,
+  UseInterceptors,
+  UploadedFiles,
+} from "@nestjs/common";
+import { FilesInterceptor } from "@nestjs/platform-express";
 import { ProductsService } from "./products.service";
 import { CreateProductDto } from "./dto/create-product.dto";
 import { UpdateProductDto } from "./dto/update-product.dto";
@@ -10,8 +23,18 @@ export class ProductsController {
   constructor(private readonly productsService: ProductsService) {}
 
   @Get()
-  findAll(@Query("category") category?: string) {
-    return this.productsService.findAll(category);
+  async findAll(
+    @Query("category") category?: string,
+    @Query("limit") limit?: string,
+    @Query("skip") skip?: string,
+  ) {
+    const usePagination = typeof limit !== "undefined";
+    const opts = {
+      limit: limit ? Number(limit) : undefined,
+      skip: skip ? Number(skip) : undefined,
+    };
+    const result = await this.productsService.findAll(category, opts);
+    return usePagination ? result : result.data;
   }
 
   @Get("slug/:slug")
@@ -24,7 +47,13 @@ export class ProductsController {
     return this.productsService.findOne(id);
   }
 
-  // Admin-only write routes — protected by Firebase auth + admin custom claim
+  @UseGuards(FirebaseAuthGuard, AdminGuard)
+  @Post("upload")
+  @UseInterceptors(FilesInterceptor("files", 10, { limits: { fileSize: 5 * 1024 * 1024 } }))
+  uploadImages(@UploadedFiles() files: Express.Multer.File[]) {
+    return this.productsService.uploadImages(files || []);
+  }
+
   @UseGuards(FirebaseAuthGuard, AdminGuard)
   @Post()
   create(@Body() dto: CreateProductDto) {

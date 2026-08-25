@@ -14,6 +14,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ProductsController = void 0;
 const common_1 = require("@nestjs/common");
+const platform_express_1 = require("@nestjs/platform-express");
 const products_service_1 = require("./products.service");
 const create_product_dto_1 = require("./dto/create-product.dto");
 const update_product_dto_1 = require("./dto/update-product.dto");
@@ -23,14 +24,23 @@ let ProductsController = class ProductsController {
     constructor(productsService) {
         this.productsService = productsService;
     }
-    findAll(category) {
-        return this.productsService.findAll(category);
+    async findAll(category, limit, skip) {
+        const usePagination = typeof limit !== "undefined";
+        const opts = {
+            limit: limit ? Number(limit) : undefined,
+            skip: skip ? Number(skip) : undefined,
+        };
+        const result = await this.productsService.findAll(category, opts);
+        return usePagination ? result : result.data;
     }
     findBySlug(slug) {
         return this.productsService.findBySlug(slug);
     }
     findOne(id) {
         return this.productsService.findOne(id);
+    }
+    uploadImages(files) {
+        return this.productsService.uploadImages(files || []);
     }
     create(dto) {
         return this.productsService.create(dto);
@@ -46,9 +56,11 @@ exports.ProductsController = ProductsController;
 __decorate([
     (0, common_1.Get)(),
     __param(0, (0, common_1.Query)("category")),
+    __param(1, (0, common_1.Query)("limit")),
+    __param(2, (0, common_1.Query)("skip")),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
-    __metadata("design:returntype", void 0)
+    __metadata("design:paramtypes", [String, String, String]),
+    __metadata("design:returntype", Promise)
 ], ProductsController.prototype, "findAll", null);
 __decorate([
     (0, common_1.Get)("slug/:slug"),
@@ -64,6 +76,15 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
 ], ProductsController.prototype, "findOne", null);
+__decorate([
+    (0, common_1.UseGuards)(firebase_auth_guard_1.FirebaseAuthGuard, admin_guard_1.AdminGuard),
+    (0, common_1.Post)("upload"),
+    (0, common_1.UseInterceptors)((0, platform_express_1.FilesInterceptor)("files", 10, { limits: { fileSize: 5 * 1024 * 1024 } })),
+    __param(0, (0, common_1.UploadedFiles)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Array]),
+    __metadata("design:returntype", void 0)
+], ProductsController.prototype, "uploadImages", null);
 __decorate([
     (0, common_1.UseGuards)(firebase_auth_guard_1.FirebaseAuthGuard, admin_guard_1.AdminGuard),
     (0, common_1.Post)(),

@@ -42,6 +42,7 @@ export declare class OrdersService {
         method: string;
         state: string;
         city: string;
+        address: string;
     }>;
     updateStatus(id: string, status: string): Promise<any>;
     markPaidByReference(reference: string): Promise<import("mongoose").Document<unknown, {}, OrderDocument, {}, {}> & Order & import("mongoose").Document<import("mongoose").Types.ObjectId, any, any, Record<string, any>, {}> & Required<{
