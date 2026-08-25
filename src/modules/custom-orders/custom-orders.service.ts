@@ -7,13 +7,15 @@ import { CreateCustomOrderDto } from "./dto/create-custom-order.dto";
 import { UpdateCustomOrderDto } from "./dto/update-custom-order.dto";
 import { NotificationsService } from "../notifications/notifications.service";
 import { WhatsappService } from "../notifications/whatsapp.service";
+import { PushSubscriptionsService } from "../push-subscriptions/push-subscriptions.service";
 
 @Injectable()
 export class CustomOrdersService {
   constructor(
     @InjectModel(CustomOrder.name) private model: Model<CustomOrderDocument>,
     private notifications: NotificationsService,
-    private whatsapp: WhatsappService
+    private whatsapp: WhatsappService,
+    private pushSubs: PushSubscriptionsService
   ) {}
 
   async create(dto: CreateCustomOrderDto, userId?: string | null) {
@@ -22,6 +24,14 @@ export class CustomOrdersService {
 
     this.notifications.notifyAdminCustomOrder(doc as any).catch(() => undefined);
     this.whatsapp.notifyOwnerCustomOrder(doc as any).catch(() => undefined);
+    this.pushSubs.broadcastToAdmins({
+      title: `New Custom Request — ${requestNumber}`,
+      body: `${dto.fullName} wants ${dto.itemType}${dto.budget ? ` (${dto.budget})` : ""}`,
+      tag: `custom-${requestNumber}`,
+      requireInteraction: true,
+      timestamp: Date.now(),
+      data: { type: "custom-order", requestNumber, url: "/custom-orders" },
+    }).catch(() => undefined);
 
     return doc;
   }

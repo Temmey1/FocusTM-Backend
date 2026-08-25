@@ -8,6 +8,7 @@ import { ProductsService } from "../products/products.service";
 import { NotificationsService } from "../notifications/notifications.service";
 import { WhatsappService } from "../notifications/whatsapp.service";
 import { PaymentsService } from "../payments/payments.service";
+import { PushSubscriptionsService } from "../push-subscriptions/push-subscriptions.service";
 import { ConfigService } from "@nestjs/config";
 
 @Injectable()
@@ -18,6 +19,7 @@ export class OrdersService {
     private notificationsService: NotificationsService,
     private whatsappService: WhatsappService,
     private paymentsService: PaymentsService,
+    private pushSubs: PushSubscriptionsService,
     private config: ConfigService
   ) {}
 
@@ -50,6 +52,14 @@ export class OrdersService {
     this.notificationsService.sendOrderConfirmation(order as any).catch(() => undefined);
     this.notificationsService.notifyAdminNewOrder(order as any).catch(() => undefined);
     this.whatsappService.notifyOwnerNewOrder(order as any).catch(() => undefined);
+    this.pushSubs.broadcastToAdmins({
+      title: `New Order — ${orderNumber}`,
+      body: `${dto.delivery.fullName} — ₦${dto.total.toLocaleString()} (${dto.paymentMethod}) · ${dto.items.length} item(s)`,
+      tag: `order-${orderNumber}`,
+      requireInteraction: true,
+      timestamp: Date.now(),
+      data: { type: "order", orderNumber, url: `/orders` },
+    }).catch(() => undefined);
 
     let monnifyCheckoutUrl: string | null = null;
 

@@ -11,6 +11,7 @@ import { AuthModule } from "./modules/auth/auth.module";
 import { LocationsModule } from "./modules/locations/locations.module";
 import { CustomOrdersModule } from "./modules/custom-orders/custom-orders.module";
 import { AdminModule } from "./modules/admin/admin.module";
+import { PushSubscriptionsModule } from "./modules/push-subscriptions/push-subscriptions.module";
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { AdminModule } from "./modules/admin/admin.module";
     // Basic rate limiting: 60 requests per 60s per IP across the API,
     // protects checkout/auth routes from abuse without needing extra infra.
     ThrottlerModule.forRoot([{ ttl: 60000, limit: 60 }]),
+    PushSubscriptionsModule,
     ProductsModule,
     OrdersModule,
     PaymentsModule,
