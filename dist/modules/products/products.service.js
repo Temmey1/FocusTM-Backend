@@ -62,25 +62,36 @@ let ProductsService = class ProductsService {
             throw new common_1.NotFoundException("Product not found");
         return this.serialize(product);
     }
+    isValidObjectId(id) {
+        return mongoose_2.Types.ObjectId.isValid(id);
+    }
     async findOne(id) {
+        if (!this.isValidObjectId(id))
+            throw new common_1.NotFoundException("Product not found");
         const product = await this.productModel.findById(id).exec();
         if (!product)
             throw new common_1.NotFoundException("Product not found");
         return this.serialize(product);
     }
     async update(id, dto) {
+        if (!this.isValidObjectId(id))
+            throw new common_1.NotFoundException("Product not found");
         const product = await this.productModel.findByIdAndUpdate(id, dto, { new: true }).exec();
         if (!product)
             throw new common_1.NotFoundException("Product not found");
         return this.serialize(product);
     }
     async remove(id) {
+        if (!this.isValidObjectId(id))
+            throw new common_1.NotFoundException("Product not found");
         const result = await this.productModel.findByIdAndDelete(id).exec();
         if (!result)
             throw new common_1.NotFoundException("Product not found");
         return { success: true };
     }
     async decrementStock(id, quantity) {
+        if (!this.isValidObjectId(id))
+            return;
         await this.productModel.findByIdAndUpdate(id, { $inc: { stock: -quantity } }).exec();
     }
     async uploadImages(files) {

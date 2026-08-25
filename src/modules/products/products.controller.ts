@@ -42,7 +42,7 @@ export class ProductsController {
     return this.productsService.findBySlug(slug);
   }
 
-  @Get(":id")
+  @Get(":id([0-9a-fA-F]{24})")
   findOne(@Param("id") id: string) {
     return this.productsService.findOne(id);
   }
@@ -61,13 +61,13 @@ export class ProductsController {
   }
 
   @UseGuards(FirebaseAuthGuard, AdminGuard)
-  @Put(":id")
+  @Put(":id([0-9a-fA-F]{24})")
   update(@Param("id") id: string, @Body() dto: UpdateProductDto) {
     return this.productsService.update(id, dto);
   }
 
   @UseGuards(FirebaseAuthGuard, AdminGuard)
-  @Delete(":id")
+  @Delete(":id([0-9a-fA-F]{24})")
   remove(@Param("id") id: string) {
     return this.productsService.remove(id);
   }

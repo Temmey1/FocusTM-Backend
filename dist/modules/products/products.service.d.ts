@@ -16,6 +16,7 @@ export declare class ProductsService {
         total: number;
     }>;
     findBySlug(slug: string): Promise<any>;
+    private isValidObjectId;
     findOne(id: string): Promise<any>;
     update(id: string, dto: UpdateProductDto): Promise<any>;
     remove(id: string): Promise<{

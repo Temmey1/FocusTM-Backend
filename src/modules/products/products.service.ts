@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
-import { Model } from "mongoose";
+import { Model, Types } from "mongoose";
 import { Product, ProductDocument } from "./product.schema";
 import { CreateProductDto } from "./dto/create-product.dto";
 import { UpdateProductDto } from "./dto/update-product.dto";
@@ -51,25 +51,33 @@ export class ProductsService {
     return this.serialize(product);
   }
 
+  private isValidObjectId(id: string): boolean {
+    return Types.ObjectId.isValid(id);
+  }
+
   async findOne(id: string) {
+    if (!this.isValidObjectId(id)) throw new NotFoundException("Product not found");
     const product = await this.productModel.findById(id).exec();
     if (!product) throw new NotFoundException("Product not found");
     return this.serialize(product);
   }
 
   async update(id: string, dto: UpdateProductDto) {
+    if (!this.isValidObjectId(id)) throw new NotFoundException("Product not found");
     const product = await this.productModel.findByIdAndUpdate(id, dto, { new: true }).exec();
     if (!product) throw new NotFoundException("Product not found");
     return this.serialize(product);
   }
 
   async remove(id: string) {
+    if (!this.isValidObjectId(id)) throw new NotFoundException("Product not found");
     const result = await this.productModel.findByIdAndDelete(id).exec();
     if (!result) throw new NotFoundException("Product not found");
     return { success: true };
   }
 
   async decrementStock(id: string, quantity: number) {
+    if (!this.isValidObjectId(id)) return;
     await this.productModel.findByIdAndUpdate(id, { $inc: { stock: -quantity } }).exec();
   }
 
