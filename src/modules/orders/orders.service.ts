@@ -6,6 +6,7 @@ import { Order, OrderDocument } from "./order.schema";
 import { CreateOrderDto } from "./dto/create-order.dto";
 import { ProductsService } from "../products/products.service";
 import { NotificationsService } from "../notifications/notifications.service";
+import { WhatsappService } from "../notifications/whatsapp.service";
 import { PaymentsService } from "../payments/payments.service";
 import { ConfigService } from "@nestjs/config";
 
@@ -15,12 +16,20 @@ export class OrdersService {
     @InjectModel(Order.name) private orderModel: Model<OrderDocument>,
     private productsService: ProductsService,
     private notificationsService: NotificationsService,
+    private whatsappService: WhatsappService,
     private paymentsService: PaymentsService,
     private config: ConfigService
   ) {}
 
   private generateOrderNumber() {
     return `FTM-${Date.now().toString().slice(-6)}-${uuid().slice(0, 4).toUpperCase()}`;
+  }
+
+  // Normalizes a Mongoose order document into the shape the frontend expects,
+  // always exposing a plain string `id` (never a raw ObjectId).
+  private serialize(order: OrderDocument) {
+    const obj = order.toObject();
+    return { ...obj, id: order._id.toString(), _id: undefined };
   }
 
   async create(dto: CreateOrderDto, userId?: string | null) {
@@ -40,6 +49,7 @@ export class OrdersService {
 
     this.notificationsService.sendOrderConfirmation(order as any).catch(() => undefined);
     this.notificationsService.notifyAdminNewOrder(order as any).catch(() => undefined);
+    this.whatsappService.notifyOwnerNewOrder(order as any).catch(() => undefined);
 
     let monnifyCheckoutUrl: string | null = null;
 
@@ -56,47 +66,58 @@ export class OrdersService {
         .catch(() => ({ checkoutUrl: null }));
 
       monnifyCheckoutUrl = checkoutUrl;
-
-      await this.orderModel.updateOne(
-        { _id: order._id },
-        { monnifyTransactionReference: orderNumber }
-      );
+      await this.orderModel.updateOne({ _id: order._id }, { monnifyTransactionReference: orderNumber });
     }
 
-    return {
-      id: order._id,
-      orderId: orderNumber,
-      orderNumber,
-      monnifyCheckoutUrl,
-      ...order.toObject(),
-    };
+    return { ...this.serialize(order), monnifyCheckoutUrl };
   }
 
-  findAll() {
-    return this.orderModel.find().sort({ createdAt: -1 }).exec();
+  async findAll() {
+    const orders = await this.orderModel.find().sort({ createdAt: -1 }).exec();
+    return orders.map((o) => this.serialize(o));
   }
 
-  findByUser(userId: string) {
-    return this.orderModel.find({ userId }).sort({ createdAt: -1 }).exec();
+  async findByUser(userId: string) {
+    const orders = await this.orderModel.find({ userId }).sort({ createdAt: -1 }).exec();
+    return orders.map((o) => this.serialize(o));
   }
 
   async findOne(id: string) {
     const order = await this.orderModel.findById(id).exec();
     if (!order) throw new NotFoundException("Order not found");
-    return order;
+    return this.serialize(order);
+  }
+
+  // Public tracking — looked up by the human-readable order number, not the
+  // Mongo _id, and returns a trimmed view (no internal fields) since this is
+  // reachable without authentication via /track/:orderNumber on the store.
+  async findByOrderNumber(orderNumber: string) {
+    const order = await this.orderModel.findOne({ orderNumber }).exec();
+    if (!order) throw new NotFoundException("Order not found");
+    const { delivery, items, subtotal, deliveryFee, total, paymentMethod, status, createdAt } = order.toObject();
+    return {
+      orderNumber,
+      status,
+      createdAt,
+      items,
+      subtotal,
+      deliveryFee,
+      total,
+      paymentMethod,
+      customerName: delivery.fullName,
+      method: delivery.method,
+      state: delivery.state,
+      city: delivery.city,
+    };
   }
 
   async updateStatus(id: string, status: string) {
     const order = await this.orderModel.findByIdAndUpdate(id, { status }, { new: true }).exec();
     if (!order) throw new NotFoundException("Order not found");
-    return order;
+    return this.serialize(order);
   }
 
   async markPaidByReference(reference: string) {
-    return this.orderModel.findOneAndUpdate(
-      { orderNumber: reference },
-      { status: "paid" },
-      { new: true }
-    );
+    return this.orderModel.findOneAndUpdate({ orderNumber: reference }, { status: "paid" }, { new: true });
   }
 }

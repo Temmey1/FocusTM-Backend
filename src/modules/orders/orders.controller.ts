@@ -18,6 +18,14 @@ export class OrdersController {
     return this.ordersService.create(dto, req.user?.uid || null);
   }
 
+  // Public order tracking — no auth required, looked up by order number.
+  // Used by the store's /track/:orderNumber page and the link sent via
+  // WhatsApp/email when an order is placed.
+  @Get("track/:orderNumber")
+  track(@Param("orderNumber") orderNumber: string) {
+    return this.ordersService.findByOrderNumber(orderNumber);
+  }
+
   // Admin: list all orders
   @UseGuards(FirebaseAuthGuard, AdminGuard)
   @Get()
