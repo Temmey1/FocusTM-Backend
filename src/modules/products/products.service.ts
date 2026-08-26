@@ -1,10 +1,10 @@
-import { Injectable, NotFoundException, BadRequestException } from "@nestjs/common";
+import { Injectable, NotFoundException, BadRequestException, ConflictException } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model, Types } from "mongoose";
 import { Product, ProductDocument } from "./product.schema";
 import { CreateProductDto } from "./dto/create-product.dto";
 import { UpdateProductDto } from "./dto/update-product.dto";
-import { S3Client } from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import * as path from "path";
 import { v4 as uuid } from "uuid";
 
@@ -30,7 +30,18 @@ export class ProductsService {
   }
 
   create(dto: CreateProductDto) {
-    return this.productModel.create(dto).then((d) => this.serialize(d as any));
+    return this.productModel
+      .create(dto)
+      .then((d) => this.serialize(d as any))
+      .catch((err) => {
+        // A retried "Add Product" with the same slug (e.g. after an earlier
+        // failed attempt) hits Mongo's unique index and would otherwise
+        // surface as an unhelpful 500 — turn it into a clear 409 instead.
+        if (err?.code === 11000) {
+          throw new ConflictException("A product with this slug already exists.");
+        }
+        throw err;
+      });
   }
 
   async findAll(category?: string, opts?: { limit?: number; skip?: number }) {
@@ -105,13 +116,15 @@ export class ProductsService {
       if (!file.mimetype.startsWith("image/")) continue;
       const ext = path.extname(file.originalname) || ".png";
       const key = `products/${Date.now()}-${uuid().slice(0, 8)}${ext}`;
-      await (s3 as any).putObject({
-        Bucket: bucket,
-        Key: key,
-        Body: file.buffer,
-        ContentType: file.mimetype,
-        CacheControl: "public, max-age=31536000",
-      });
+      await s3.send(
+        new PutObjectCommand({
+          Bucket: bucket,
+          Key: key,
+          Body: file.buffer,
+          ContentType: file.mimetype,
+          CacheControl: "public, max-age=31536000",
+        }),
+      );
       urls.push(`${publicBase}/${key}`);
     }
 

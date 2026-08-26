@@ -9,7 +9,11 @@
     "start:prod": "node dist/main",
     "seed": "ts-node -r tsconfig-paths/register src/scripts/seed.ts",
     "make-admin": "ts-node -r tsconfig-paths/register src/scripts/make-admin.ts",
-    "revoke-admin": "ts-node -r tsconfig-paths/register src/scripts/revoke-admin.ts"
+    "revoke-admin": "ts-node -r tsconfig-paths/register src/scripts/revoke-admin.ts",
+    "generate-vapid-keys": "ts-node -r tsconfig-paths/register src/scripts/generate-vapid-keys.ts"
+  },
+  "engines": {
+    "node": ">=20"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1116.0",

@@ -47,7 +47,7 @@ export class PushSubscriptionsController {
   }
 
   @Delete()
-  async unsubscribe(@Req() req: any, @Body() body: { endpoint: string }) {
+  async unsubscribe(@Req() req: any, @Body() body: { endpoint: string }): Promise<any> {
     if (!body?.endpoint) throw new BadRequestException("endpoint is required");
     return this.service.unsubscribe(req.user.uid, body.endpoint);
   }

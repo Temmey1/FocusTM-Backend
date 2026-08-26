@@ -4,8 +4,22 @@ import { Model } from "mongoose";
 import { PushSubscription, PushSubscriptionDocument } from "./push-subscription.schema";
 import * as https from "https";
 import * as http from "http";
-import * as url from "url";
 import { ConfigService } from "@nestjs/config";
+import { webcrypto } from "node:crypto";
+
+// The Web Crypto API (crypto.subtle, crypto.getRandomValues) is only a
+// global on Node 19+. Importing it explicitly means this works the same on
+// whatever Node version a host actually provisions, instead of silently
+// throwing "crypto is not defined" if it lands on Node 18.
+//
+// Typed as `any` deliberately: newer @types/node made Uint8Array generic
+// over ArrayBufferLike while lib.dom's Crypto/SubtleCrypto types still want
+// a plain ArrayBuffer, which makes every raw byte array below fail to
+// typecheck against the strict DOM signatures even though it's fine at
+// runtime. This is Node-only backend code, never running in a browser, so
+// there's no risk in relaxing the type here rather than sprinkling casts
+// through two dozen call sites below.
+const crypto: any = (globalThis as any).crypto ?? webcrypto;
 
 export interface WebPushPayload {
   title: string;
@@ -48,7 +62,7 @@ function concatUint8(arrays: Uint8Array[]): Uint8Array {
   return out;
 }
 
-async function hmacSha256(key: ArrayBuffer, data: Uint8Array): Promise<ArrayBuffer> {
+async function hmacSha256(key: Uint8Array, data: Uint8Array): Promise<ArrayBuffer> {
   const cryptoKey = await crypto.subtle.importKey(
     "raw",
     key,
@@ -104,7 +118,10 @@ export class PushSubscriptionsService {
     private config: ConfigService,
   ) {}
 
-  private get vapidKeys() {
+  // Was previously declared as `private get vapidKeys()` and called with
+  // `()` at both use sites below — a getter can't be invoked like a
+  // function, so this never actually compiled. Made it a plain method.
+  private getVapidKeypair() {
     const privateB64 = this.config.get<string>("VAPID_PRIVATE_KEY");
     const publicB64 = this.config.get<string>("VAPID_PUBLIC_KEY");
     if (!privateB64 || !publicB64) return null;
@@ -115,7 +132,7 @@ export class PushSubscriptionsService {
   }
 
   getVapidPublicKey(): string | null {
-    return this.vapidKeys()?.publicB64 ?? null;
+    return this.getVapidKeypair()?.publicB64 ?? null;
   }
 
   async subscribe(dto: { userId: string; userEmail?: string; endpoint: string; keys: { p256dh: string; auth: string }; scope?: string }) {
@@ -144,7 +161,7 @@ export class PushSubscriptionsService {
     return this.model.find({ userId }).exec();
   }
 
-  async unsubscribe(userId: string, endpoint: string) {
+  async unsubscribe(userId: string, endpoint: string): Promise<any> {
     return this.model.deleteOne({ userId, endpoint }).exec();
   }
 
@@ -212,7 +229,7 @@ export class PushSubscriptionsService {
     return { serverPub, privJwk };
   }
 
-  private async generateVapidToken(endpointUrl: string, serverPubB64: string, serverPrivBytes: Uint8Array) {
+  private async generateVapidToken(endpointUrl: URL, serverPubB64: string, serverPrivBytes: Uint8Array) {
     const audience = `${endpointUrl.protocol}//${endpointUrl.host}`;
     const exp = Math.floor(Date.now() / 1000) + 60 * 60 * 12;
     const header = { alg: "ES256", typ: "JWT" };
@@ -242,13 +259,18 @@ export class PushSubscriptionsService {
   }
 
   private async sendOne(sub: PushSubscriptionDocument, payloadJson: string) {
-    const vapid = this.vapidKeys();
+    const vapid = this.getVapidKeypair();
     if (!vapid) {
       this.logger.warn("Skipping web push: VAPID keys not configured. Set VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, and optionally VAPID_CONTACT_EMAIL in .env");
       return { ok: false, reason: "missing-vapid" };
     }
 
-    const endpointUrl = url.parse(sub.endpoint);
+    let endpointUrl: URL;
+    try {
+      endpointUrl = new URL(sub.endpoint);
+    } catch {
+      return { ok: false, reason: "invalid-endpoint" };
+    }
     if (!endpointUrl.hostname || !endpointUrl.protocol) {
       return { ok: false, reason: "invalid-endpoint" };
     }
@@ -268,7 +290,7 @@ export class PushSubscriptionsService {
     const options: http.RequestOptions = {
       hostname: endpointUrl.hostname,
       port: endpointUrl.port ? Number(endpointUrl.port) : (endpointUrl.protocol === "https:" ? 443 : 80),
-      path: endpointUrl.path,
+      path: endpointUrl.pathname + endpointUrl.search,
       method: "POST",
       headers: {
         "Content-Type": "application/octet-stream",
